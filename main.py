@@ -102,9 +102,9 @@ if escolha == "🏠 Dashboard":
     st.subheader("Bem-vindo ao sistema da barbearia!")
     st.info("Use o menu lateral para navegar entre as telas.")
     imagens = [
-        r"C:\Users\ricar\Documents\Streamlit_\imagem1.png",
-        r"C:\Users\ricar\Documents\Streamlit_\imagem2.png",
-        r"C:\Users\ricar\Documents\Streamlit_\imagem3.png"
+        "imagem1.png",
+        "imagem2.png",
+        "imagem3.png"
     ]
 
     if "img_index" not in st.session_state:
@@ -163,3 +163,4 @@ elif escolha == "💳 Pagamentos":
 elif escolha == "📊 Relatórios":
     st.title("📊 Relatórios")
     st.info("Aqui serão exibidos gráficos de faturamento e serviços mais vendidos (a implementar).")
+
