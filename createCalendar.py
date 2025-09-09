@@ -599,24 +599,24 @@ def createCalendar():
                         f"Erro ao carregar clientes/serviços para edição: {str(e)}")
 
     # Legenda de status
-    # st.markdown("---")
-    # st.markdown("### 🏷️ Legenda de Status")
-    # status_colors = {
-    #     'Agendado': '#28a745',
-    #     'Confirmado': '#17a2b8',
-    #     'Em Andamento': '#ffc107',
-    #     'Concluído': '#6f42c1',
-    #     'Cancelado': '#dc3545',
-    #     'Faltou': '#6c757d'
-    # }
-    # cols = st.columns(len(status_colors))
-    # for i, (status, color) in enumerate(status_colors.items()):
-    #     with cols[i]:
-    #         st.markdown(f"""
-    #         <div style='background-color: {color}; color: white; padding: 5px; border-radius: 3px; text-align: center; font-size: 12px;'>
-    #             <strong>{status}</strong>
-    #         </div><br>
-    #         """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("### 🏷️ Legenda de Status")
+    status_colors = {
+        'Agendado': '#28a745',
+        'Confirmado': '#17a2b8',
+        'Em Andamento': '#ffc107',
+        'Concluído': '#6f42c1',
+        'Cancelado': '#dc3545',
+        'Faltou': '#6c757d'
+    }
+    cols = st.columns(len(status_colors))
+    for i, (status, color) in enumerate(status_colors.items()):
+        with cols[i]:
+            st.markdown(f"""
+            <div style='background-color: {color}; color: white; padding: 5px; border-radius: 3px; text-align: center; font-size: 12px;'>
+                <strong>{status}</strong>
+            </div><br>
+            """, unsafe_allow_html=True)
 
     # if st.checkbox("Formato de Tabela"):
 
