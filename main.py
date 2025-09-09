@@ -55,6 +55,13 @@ def init_db():
                     data_pagamento TEXT
                 )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS inadimplentes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cliente_id INTEGER,
+                    status BOOLEAN,
+                    data_atualizacao DATE DEFAULT (DATE('now'))
+                )''')
+
     conn.commit()
     conn.close()
 
