@@ -8,6 +8,7 @@ import altair as alt
 import plotly.express as px
 import plotly.graph_objects as go
 from createCalendar import createCalendar
+from inadimplentes import pagina_inadimplentes
 
 # -------------------------------
 # Configuração da Página
@@ -125,7 +126,6 @@ def gerar_inserts_pagamentos(qtd=5):
         preco = float(servico["preco"])
         metodo = random.choice(["Pix", "Cartão", "Dinheiro"])
 
-        # gera uma data de pagamento nos últimos 90 dias
         data_pag = hoje  # - timedelta(days=random.randint(0, 90))
         data_str = data_pag.strftime("%Y-%m-%d")
 
@@ -154,7 +154,7 @@ def executar_inserts_pagamentos(qtd=5):
 # Menu de Navegação
 # -------------------------------
 menu = ["🏠 Dashboard", "👥 Clientes", "📅 Agendamentos",
-        "✂️ Serviços", "💳 Pagamentos", "📊 Relatórios"]
+        "✂️ Serviços", "💳 Pagamentos", "📊 Relatórios", "⚠️ Inadimplentes"]
 escolha = st.sidebar.radio("Navegação", menu)
 
 # -------------------------------
@@ -997,3 +997,6 @@ elif escolha == "📊 Relatórios":
                 st.error(f"Erro ao executar consulta: {e}")
                 if 'conn' in locals():
                     conn.close()
+
+elif escolha == "⚠️ Inadimplentes":
+    pagina_inadimplentes()
