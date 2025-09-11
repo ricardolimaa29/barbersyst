@@ -967,7 +967,7 @@ elif escolha == "📊 Relatórios":
                     )])
 
                     fig.update_layout(
-                        title=f"Top 10 Clientes por Faturamento - {periodo_titulo}",
+                        title=f"Top 10 Clientes - {periodo_titulo}",
                         xaxis_title="Cliente",
                         yaxis_title="Total Gasto (R$)",
                         xaxis_tickangle=-45
@@ -975,28 +975,26 @@ elif escolha == "📊 Relatórios":
 
                     st.plotly_chart(fig, use_container_width=True)
 
-                    # Tabela detalhada
-                    if st.checkbox("Mostrar dados detalhados", key="checkbox_top_clientes"):
-                        df_formatado = df.copy()
-                        df_formatado['total_gasto'] = df_formatado['total_gasto'].apply(
-                            lambda x: f"R$ {x:,.2f}".replace(
-                                ',', 'X').replace('.', ',').replace('X', '.')
-                        )
-                        df_formatado['ticket_medio'] = df_formatado['ticket_medio'].apply(
-                            lambda x: f"R$ {x:,.2f}".replace(
-                                ',', 'X').replace('.', ',').replace('X', '.')
-                        )
-                        df_formatado.columns = [
-                            'Cliente', 'Total Serviços', 'Total Gasto', 'Ticket Médio']
-
+                    # Mostrar tabela detalhada
+                    if st.checkbox("Mostrar tabela de clientes detalhada", key="checkbox_top_clientes"):
+                        df = df.rename(columns={
+                            "nome": "Cliente",
+                            "total_servicos": "Qtd Serviços",
+                            "total_gasto": "Total Gasto (R$)",
+                            "ticket_medio": "Ticket Médio (R$)"
+                        })
                         st.dataframe(
-                            df_formatado, use_container_width=True, hide_index=True)
+                            df.style.format({
+                                "Total Gasto (R$)": "R$ {:.2f}",
+                                "Ticket Médio (R$)": "R$ {:.2f}"
+                            }),
+                            use_container_width=True,
+                            hide_index=True
+                        )
                 else:
-                    st.info(
-                        f"Nenhum cliente encontrado para {periodo_titulo}.")
-
+                    st.info("Nenhum cliente encontrado para o período selecionado.")
             except Exception as e:
-                st.error(f"Erro ao executar consulta: {e}")
+                st.error(f"Erro ao carregar relatório de clientes: {e}")
                 if 'conn' in locals():
                     conn.close()
 
