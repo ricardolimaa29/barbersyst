@@ -156,7 +156,7 @@ def executar_inserts_pagamentos(qtd=5):
 # Menu de Navegação
 # -------------------------------
 menu = ["🏠 Dashboard", "👥 Clientes", "📅 Agendamentos",
-        "✂️ Serviços", "💳 Pagamentos", "📊 Relatórios", "⚠️ Inadimplentes", "✉ Email Worker"]
+        "✂️ Serviços", "💳 Pagamentos", "📊 Relatórios", "⚠️ Inadimplentes", "📧 Email Worker"]
 escolha = st.sidebar.radio("Navegação", menu)
 
 # -------------------------------
@@ -1003,5 +1003,5 @@ elif escolha == "📊 Relatórios":
 elif escolha == "⚠️ Inadimplentes":
     pagina_inadimplentes()
 
-elif escolha == "✉ Email Worker":
+elif escolha == "📧 Email Worker":
     exibir_interface_email_worker()
