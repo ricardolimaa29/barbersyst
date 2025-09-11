@@ -9,6 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from createCalendar import createCalendar
 from inadimplentes import pagina_inadimplentes
+from streamlit_email_worker import exibir_interface_email_worker
 
 # -------------------------------
 # Configuração da Página
@@ -44,7 +45,8 @@ def init_db():
                     servico_id INTEGER,
                     data TEXT,
                     hora TEXT,
-                    status TEXT
+                    status TEXT,
+                    created_at DATE DEFAULT (DATE('now'))
                 )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS pagamentos (
@@ -154,7 +156,7 @@ def executar_inserts_pagamentos(qtd=5):
 # Menu de Navegação
 # -------------------------------
 menu = ["🏠 Dashboard", "👥 Clientes", "📅 Agendamentos",
-        "✂️ Serviços", "💳 Pagamentos", "📊 Relatórios", "⚠️ Inadimplentes"]
+        "✂️ Serviços", "💳 Pagamentos", "📊 Relatórios", "⚠️ Inadimplentes", "✉ Email Worker"]
 escolha = st.sidebar.radio("Navegação", menu)
 
 # -------------------------------
@@ -1000,3 +1002,6 @@ elif escolha == "📊 Relatórios":
 
 elif escolha == "⚠️ Inadimplentes":
     pagina_inadimplentes()
+
+elif escolha == "✉ Email Worker":
+    exibir_interface_email_worker()

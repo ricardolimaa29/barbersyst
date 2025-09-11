@@ -1,3 +1,7 @@
+# ==========================================
+# ARQUIVO: inadimplentes.py
+# ==========================================
+
 import streamlit as st
 import sqlite3
 from datetime import datetime
@@ -92,7 +96,6 @@ def pagina_inadimplentes():
 
         if not inadimplentes:
             st.info("📄 Nenhum inadimplente cadastrado.")
-            return
 
         # Filtros
         col1, col2 = st.columns([2, 3])
@@ -169,7 +172,6 @@ def pagina_inadimplentes():
                 "⚠️ Nenhum cliente cadastrado. Cadastre clientes primeiro.")
             st.info(
                 "💡 **Dica:** Vá até a seção 'Clientes' para cadastrar novos clientes.")
-            return
 
         # Formulário de cadastro
         with st.form("form_inadimplente", clear_on_submit=True):
@@ -213,6 +215,7 @@ def pagina_inadimplentes():
                 else:
                     # Converter status para boolean
                     status_bool = True if "Inadimplente" in status else False
+                    showBalloons = st.balloons() if status_bool == False else None
 
                     # Pegar o ID do cliente selecionado
                     indice_cliente = opcoes_clientes.index(cliente_selecionado)
@@ -225,11 +228,11 @@ def pagina_inadimplentes():
                     if resultado == "cadastrado":
                         st.success(
                             f"✅ **Cliente {cliente_nome}** foi cadastrado como **{status.replace('🔴 ', '').replace('🟢 ', '').lower()}**!")
-                        st.balloons()
+                        showBalloons
                     elif resultado == "atualizado":
                         st.success(
                             f"✅ **Status do cliente {cliente_nome}** foi atualizado para **{status.replace('🔴 ', '').replace('🟢 ', '').lower()}**!")
-                        st.balloons()
+                        showBalloons
 
                     # Mostrar informações adicionais
                     data_hoje = datetime.now().strftime('%d/%m/%Y')
