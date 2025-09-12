@@ -18,11 +18,15 @@ Nosso foco é **qualidade de atendimento**, sem limitar os profissionais, garant
 
 ## 📞 Como entrar em contato para um orçamento
 
-👉 Clique no botão abaixo e já fale comigo:
+👉 Clique no botão abaixo e já fale conosco:
 
 [![Email](https://img.shields.io/badge/📩%20Enviar%20E--mail-blue?style=for-the-badge)](mailto:ricardolimaa29@gmail.com?subject=Quero%20um%20orçamento%20do%20BarberSyst&body=Nome:%0D%0ABarbearia:%0D%0ACidade/Estado:%0D%0ANúmero%20de%20profissionais:%0D%0ARecursos%20de%20interesse:)
 
 [![WhatsApp](https://img.shields.io/badge/💬%20Chamar%20no%20WhatsApp-brightgreen?style=for-the-badge)](https://wa.me/5514997237199?text=Olá,%20gostaria%20de%20um%20orçamento%20do%20BarberSyst!)
+
+[![Email](https://img.shields.io/badge/📩%20Enviar%20E--mail-blue?style=for-the-badge)](mailto:nortonsantos79@gmail.com?subject=Quero%20um%20orçamento%20do%20BarberSyst&body=Nome:%0D%0ABarbearia:%0D%0ACidade/Estado:%0D%0ANúmero%20de%20profissionais:%0D%0ARecursos%20de%20interesse:)
+
+[![WhatsApp](https://img.shields.io/badge/💬%20Chamar%20no%20WhatsApp-brightgreen?style=for-the-badge)](https://wa.me/5514910052626?text=Olá,%20gostaria%20de%20um%20orçamento%20do%20BarberSyst!)
 
 ---
 
@@ -42,7 +46,7 @@ Nosso foco é **qualidade de atendimento**, sem limitar os profissionais, garant
 ---
 
 **Norton**  
-🔗 [GitHub](https://github.com/Norton)  
+🔗 [GitHub](https://github.com/Norton794)  
 ---
 
 ✨ *O BarberSyst nasce para transformar a gestão de barbearias, colocando o cliente e o profissional no centro da experiência.*
