@@ -22,11 +22,11 @@ Nosso foco é **qualidade de atendimento**, sem limitar os profissionais, garant
 
 [![Email](https://img.shields.io/badge/📩%20Enviar%20E--mail-blue?style=for-the-badge)](mailto:ricardolimaa29@gmail.com?subject=Quero%20um%20orçamento%20do%20BarberSyst&body=Nome:%0D%0ABarbearia:%0D%0ACidade/Estado:%0D%0ANúmero%20de%20profissionais:%0D%0ARecursos%20de%20interesse:)
 
-[![WhatsApp](https://img.shields.io/badge/💬%20Chamar%20no%20WhatsApp-brightgreen?style=for-the-badge)](https://wa.me/5514997237199?text=Olá,%20gostaria%20de%20um%20orçamento%20do%20BarberSyst!)
+[![WhatsApp](https://img.shields.io/badge/💬%20Chamar%20no%20WhatsApp%20Ricardo-brightgreen?style=for-the-badge)](https://wa.me/5514997237199?text=Olá,%20gostaria%20de%20um%20orçamento%20do%20BarberSyst!)
 
 [![Email](https://img.shields.io/badge/📩%20Enviar%20E--mail-blue?style=for-the-badge)](mailto:nortonsantos79@gmail.com?subject=Quero%20um%20orçamento%20do%20BarberSyst&body=Nome:%0D%0ABarbearia:%0D%0ACidade/Estado:%0D%0ANúmero%20de%20profissionais:%0D%0ARecursos%20de%20interesse:)
 
-[![WhatsApp](https://img.shields.io/badge/💬%20Chamar%20no%20WhatsApp-brightgreen?style=for-the-badge)](https://wa.me/5514910052626?text=Olá,%20gostaria%20de%20um%20orçamento%20do%20BarberSyst!)
+[![WhatsApp](https://img.shields.io/badge/💬%20Chamar%20no%20WhatsApp%20Norton-brightgreen?style=for-the-badge)](https://wa.me/5514910052626?text=Olá,%20gostaria%20de%20um%20orçamento%20do%20BarberSyst!)
 
 ---
 
