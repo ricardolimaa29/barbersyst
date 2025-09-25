@@ -5,6 +5,8 @@ from streamlit_calendar import calendar
 from datetime import datetime, timedelta
 import time
 from apimercadopago import gerar_link
+from getGoogleCalendar import criar_evento_calendar
+
 
 # ---------------------------
 # Funções de acesso ao banco
@@ -102,6 +104,16 @@ def inserir_agendamento(cliente_id, servico_id, data, hora, status='agendado'):
                   (cliente_id, servico_id, data, hora, status))
         conn.commit()
         agendamento_id = c.lastrowid
+        agendamento_data = {
+            'id': agendamento_id,
+            'cliente_id': cliente_id,
+            'servico_id': servico_id,
+            'data': data,
+            'hora': hora
+        }
+        if agendamento_id:
+            google_event_id = criar_evento_calendar(agendamento_data)
+            print("Google Event ID:", google_event_id)
         conn.close()
         return True, agendamento_id
     except Exception as e:

@@ -77,7 +77,7 @@ class StreamlitEmailWorker:
                     AND (a.created_at >= ? OR a.created_at IS NULL)
                     AND a.id NOT IN (
                         SELECT agendamento_id FROM emails_enviados 
-                        WHERE tipo_email = 'confirmacao'
+                        WHERE tipo_email = 'confirmacao' AND agendamento_id IS NOT NULL
                     )
                     LIMIT 10
                 """
@@ -102,7 +102,7 @@ class StreamlitEmailWorker:
                     AND datetime(a.data || ' ' || a.hora) BETWEEN ? AND ?
                     AND a.id NOT IN (
                         SELECT agendamento_id FROM emails_enviados 
-                        WHERE tipo_email = 'lembrete_1dia'
+                        WHERE tipo_email = 'lembrete_1dia' AND agendamento_id IS NOT NULL
                     )
                     LIMIT 5
                 """
@@ -128,7 +128,7 @@ class StreamlitEmailWorker:
                     AND datetime(a.data || ' ' || a.hora) > ?
                     AND a.id NOT IN (
                         SELECT agendamento_id FROM emails_enviados 
-                        WHERE tipo_email = 'lembrete_30min'
+                        WHERE tipo_email = 'lembrete_30min' AND agendamento_id IS NOT NULL
                     )
                     LIMIT 5
                 """
@@ -163,6 +163,107 @@ class StreamlitEmailWorker:
             self.logger.error(f"Erro ao buscar agendamentos: {e}")
             return []
 
+    def buscar_clientes_inativos(self) -> List[Dict]:
+        """
+        Busca clientes que não fazem agendamento há mais de 20 dias
+        e que não receberam email de retorno nos últimos 20 dias
+        """
+        try:
+            conn = self.conectar_banco()
+            vinte_dias_atras = datetime.now() - timedelta(days=20)
+
+            query = """
+                SELECT DISTINCT
+                    c.nome as cliente_nome, 
+                    c.email as cliente_email,
+                    MAX(a.data) as ultimo_agendamento
+                FROM clientes c
+                JOIN agendamentos a ON c.id = a.cliente_id
+                WHERE c.email IS NOT NULL 
+                AND c.email != ''
+                AND a.data <= ?
+                AND c.email NOT IN (
+                    SELECT ee.email_cliente FROM emails_enviados ee 
+                    WHERE ee.tipo_email = 'retorno_cliente' 
+                    AND ee.data_envio >= ?
+                )
+                GROUP BY c.nome, c.email
+                HAVING MAX(a.data) <= ?
+                LIMIT 10
+            """
+
+            params = (
+                vinte_dias_atras.strftime('%Y-%m-%d'),
+                vinte_dias_atras.strftime('%Y-%m-%d %H:%M:%S'),
+                vinte_dias_atras.strftime('%Y-%m-%d')
+            )
+
+            cursor = conn.execute(query, params)
+            clientes = []
+
+            for row in cursor.fetchall():
+                clientes.append({
+                    'cliente_nome': row[0],
+                    'cliente_email': row[1],
+                    'ultimo_agendamento': row[2]
+                })
+
+            conn.close()
+            return clientes
+
+        except Exception as e:
+            self.logger.error(f"Erro ao buscar clientes inativos: {e}")
+            return []
+
+    def buscar_clientes_sem_agendamento(self) -> List[Dict]:
+        """
+        Busca clientes que nunca fizeram agendamento e não receberam 
+        email promocional nos últimos 20 dias
+        """
+        try:
+            conn = self.conectar_banco()
+            vinte_dias_atras = datetime.now() - timedelta(days=20)
+
+            query = """
+                SELECT 
+                    c.nome as cliente_nome,
+                    c.email as cliente_email,
+                    c.created_at as data_cadastro
+                FROM clientes c
+                WHERE c.email IS NOT NULL 
+                AND c.email != ''
+                AND c.id NOT IN (
+                    SELECT DISTINCT a.cliente_id 
+                    FROM agendamentos a 
+                    WHERE a.cliente_id = c.id
+                )
+                AND c.email NOT IN (
+                    SELECT ee.email_cliente FROM emails_enviados ee 
+                    WHERE ee.tipo_email = 'promocional_novo' 
+                    AND ee.data_envio >= ?
+                )
+                LIMIT 10
+            """
+
+            params = (vinte_dias_atras.strftime('%Y-%m-%d %H:%M:%S'),)
+
+            cursor = conn.execute(query, params)
+            clientes = []
+
+            for row in cursor.fetchall():
+                clientes.append({
+                    'cliente_nome': row[0],
+                    'cliente_email': row[1],
+                    'data_cadastro': row[2] if row[2] else 'Não informado'
+                })
+
+            conn.close()
+            return clientes
+
+        except Exception as e:
+            self.logger.error(f"Erro ao buscar clientes sem agendamento: {e}")
+            return []
+
     def criar_tabela_emails_enviados(self):
         """Cria tabela para controlar emails enviados se não existir"""
         try:
@@ -170,7 +271,7 @@ class StreamlitEmailWorker:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS emails_enviados (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    agendamento_id INTEGER NOT NULL,
+                    agendamento_id INTEGER,
                     tipo_email TEXT NOT NULL,
                     email_cliente TEXT NOT NULL,
                     data_envio DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -197,6 +298,41 @@ class StreamlitEmailWorker:
                 f"Email registrado: {tipo_email} para agendamento {agendamento_id}")
         except Exception as e:
             self.logger.error(f"Erro ao registrar email: {e}")
+
+    def registrar_email_retorno(self, email_cliente: str, sucesso: bool = True):
+        """Registra email de retorno enviado para cliente inativo"""
+        try:
+            conn = self.conectar_banco()
+
+            conn.execute("""
+                INSERT INTO emails_enviados (agendamento_id, tipo_email, email_cliente, sucesso)
+                VALUES (NULL, 'retorno_cliente', ?, ?)
+            """, (email_cliente, sucesso))
+
+            conn.commit()
+            conn.close()
+            self.logger.info(f"Email retorno registrado para {email_cliente}")
+
+        except Exception as e:
+            self.logger.error(f"Erro ao registrar email retorno: {e}")
+
+    def registrar_email_promocional(self, email_cliente: str, sucesso: bool = True):
+        """Registra email promocional enviado para cliente sem agendamento"""
+        try:
+            conn = self.conectar_banco()
+
+            conn.execute("""
+                INSERT INTO emails_enviados (agendamento_id, tipo_email, email_cliente, sucesso)
+                VALUES (NULL, 'promocional_novo', ?, ?)
+            """, (email_cliente, sucesso))
+
+            conn.commit()
+            conn.close()
+            self.logger.info(
+                f"Email promocional registrado para {email_cliente}")
+
+        except Exception as e:
+            self.logger.error(f"Erro ao registrar email promocional: {e}")
 
     def gerar_template_email(self, agendamento: Dict, tipo_envio: int) -> tuple:
         """Gera o template do email baseado no tipo"""
@@ -315,6 +451,108 @@ class StreamlitEmailWorker:
 
         return assunto, corpo_html, corpo_texto
 
+    def gerar_template_email_retorno(self, cliente: Dict) -> tuple:
+        """Gera template de email para cliente inativo"""
+        nome = cliente['cliente_nome']
+        ultimo_agendamento = datetime.strptime(
+            cliente['ultimo_agendamento'], '%Y-%m-%d').strftime('%d/%m/%Y')
+
+        assunto = f"Sentimos sua falta! - {self.empresa_nome}"
+
+        corpo_html = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #2c3e50; text-align: center;">Sentimos sua falta!</h2>
+                    
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="color: #27ae60; margin-top: 0;">Olá, {nome}!</h3>
+                        <p>Notamos que seu último agendamento foi em <strong>{ultimo_agendamento}</strong> e sentimos muito a sua falta!</p>
+                        
+                        <ul style="background: white; padding: 15px; border-left: 4px solid #3498db;">
+                            <li><strong>Último agendamento:</strong> {ultimo_agendamento}</li>
+                            <li><strong>Status:</strong> Cliente especial</li>
+                            <li><strong>Convite:</strong> Que tal agendar um novo horário?</li>
+                        </ul>
+                        
+                        <p>Estamos sempre aqui para cuidar de você com o mesmo carinho de sempre.</p>
+                    </div>
+                    
+                    <div style="text-align: center; color: #666;">
+                        <p><strong>{self.empresa_nome}</strong></p>
+                        {f'<p>{self.empresa_telefone}</p>' if self.empresa_telefone else ''}
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+
+        corpo_texto = f"""
+        Sentimos sua falta! - {self.empresa_nome}
+        
+        Olá, {nome}!
+        
+        Último agendamento: {ultimo_agendamento}
+        Status: Cliente especial
+        Convite: Que tal agendar um novo horário?
+        
+        Estamos sempre aqui para cuidar de você com o mesmo carinho de sempre.
+        
+        {self.empresa_nome}
+        """
+
+        return assunto, corpo_html, corpo_texto
+
+    def gerar_template_email_promocional(self, cliente: Dict) -> tuple:
+        """Gera template de email promocional para cliente sem agendamento"""
+        nome = cliente['cliente_nome']
+
+        assunto = f"Conheça nossos serviços! - {self.empresa_nome}"
+
+        corpo_html = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #2c3e50; text-align: center;">Conheça nossos serviços!</h2>
+                    
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="color: #27ae60; margin-top: 0;">Olá, {nome}!</h3>
+                        <p>Que tal conhecer nossos serviços e agendar seu primeiro horário conosco?</p>
+                        
+                        <ul style="background: white; padding: 15px; border-left: 4px solid #3498db;">
+                            <li><strong>Serviços:</strong> Cortes modernos e clássicos</li>
+                            <li><strong>Qualidade:</strong> Profissionais experientes</li>
+                            <li><strong>Convite:</strong> Faça seu primeiro agendamento!</li>
+                        </ul>
+                        
+                        <p>Estamos prontos para cuidar de você com todo carinho e profissionalismo.</p>
+                    </div>
+                    
+                    <div style="text-align: center; color: #666;">
+                        <p><strong>{self.empresa_nome}</strong></p>
+                        {f'<p>{self.empresa_telefone}</p>' if self.empresa_telefone else ''}
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+
+        corpo_texto = f"""
+        Conheça nossos serviços! - {self.empresa_nome}
+        
+        Olá, {nome}!
+        
+        Serviços: Cortes modernos e clássicos
+        Qualidade: Profissionais experientes
+        Convite: Faça seu primeiro agendamento!
+        
+        Estamos prontos para cuidar de você com todo carinho e profissionalismo.
+        
+        {self.empresa_nome}
+        """
+
+        return assunto, corpo_html, corpo_texto
+
     def enviar_email(self, destinatario: str, assunto: str, corpo_html: str, corpo_texto: str) -> bool:
         """Envia o email"""
         try:
@@ -409,12 +647,105 @@ class StreamlitEmailWorker:
 
         return enviados
 
+    def processar_emails_retorno(self):
+        """Processa envios de email para clientes inativos"""
+        clientes = self.buscar_clientes_inativos()
+
+        if not clientes:
+            return 0
+
+        enviados = 0
+        for cliente in clientes:
+            try:
+                self.logger.info(
+                    f"Processando email retorno para {cliente['cliente_email']}")
+
+                assunto, corpo_html, corpo_texto = self.gerar_template_email_retorno(
+                    cliente)
+
+                sucesso = self.enviar_email(
+                    cliente['cliente_email'],
+                    assunto,
+                    corpo_html,
+                    corpo_texto
+                )
+
+                self.registrar_email_retorno(
+                    cliente['cliente_email'],
+                    sucesso
+                )
+
+                if sucesso:
+                    enviados += 1
+                    self.logger.info(
+                        f"Email retorno enviado para {cliente['cliente_email']}")
+
+                time.sleep(2)  # Pausa entre emails
+
+            except Exception as e:
+                self.logger.error(
+                    f"Erro ao processar cliente {cliente['cliente_email']}: {e}")
+                self.registrar_email_retorno(cliente['cliente_email'], False)
+
+        if enviados > 0:
+            self.logger.info(f"Total emails retorno: {enviados} enviados")
+
+        return enviados
+
+    def processar_emails_promocionais(self):
+        """Processa envios de email promocional para clientes sem agendamento"""
+        clientes = self.buscar_clientes_sem_agendamento()
+
+        if not clientes:
+            return 0
+
+        enviados = 0
+        for cliente in clientes:
+            try:
+                self.logger.info(
+                    f"Processando email promocional para {cliente['cliente_email']}")
+
+                assunto, corpo_html, corpo_texto = self.gerar_template_email_promocional(
+                    cliente)
+
+                sucesso = self.enviar_email(
+                    cliente['cliente_email'],
+                    assunto,
+                    corpo_html,
+                    corpo_texto
+                )
+
+                self.registrar_email_promocional(
+                    cliente['cliente_email'],
+                    sucesso
+                )
+
+                if sucesso:
+                    enviados += 1
+                    self.logger.info(
+                        f"Email promocional enviado para {cliente['cliente_email']}")
+
+                time.sleep(2)  # Pausa entre emails
+
+            except Exception as e:
+                self.logger.error(
+                    f"Erro ao processar cliente {cliente['cliente_email']}: {e}")
+                self.registrar_email_promocional(
+                    cliente['cliente_email'], False)
+
+        if enviados > 0:
+            self.logger.info(f"Total emails promocionais: {enviados} enviados")
+
+        return enviados
+
     def executar_verificacao_unica(self):
         """Executa uma verificação manual de todos os tipos"""
         resultados = {
             'confirmacoes': 0,
             'lembretes_1dia': 0,
             'lembretes_30min': 0,
+            'emails_retorno': 0,
+            'emails_promocionais': 0,
             'erros': []
         }
 
@@ -430,9 +761,15 @@ class StreamlitEmailWorker:
             # Lembretes 30 min
             resultados['lembretes_30min'] = self.processar_envios(2)
 
-            # CORREÇÃO 1: Fix do erro dict_values
-            total_enviados = resultados['confirmacoes'] + \
-                resultados['lembretes_1dia'] + resultados['lembretes_30min']
+            # Emails de retorno e promocionais
+            resultados['emails_retorno'] = self.processar_emails_retorno()
+            resultados['emails_promocionais'] = self.processar_emails_promocionais()
+
+            total_enviados = (resultados['confirmacoes'] +
+                              resultados['lembretes_1dia'] +
+                              resultados['lembretes_30min'] +
+                              resultados['emails_retorno'] +
+                              resultados['emails_promocionais'])
             self.logger.info(
                 f"Verificação concluída: {total_enviados} emails enviados")
 
@@ -449,9 +786,7 @@ class StreamlitEmailWorker:
 
         while self.running:
             try:
-
                 agora = datetime.now()
-
                 deve_executar = False
 
                 if agora.minute % 2 == 0:  # A cada 2 minutos ao invés de 5
@@ -472,15 +807,17 @@ class StreamlitEmailWorker:
                     conf = self.processar_envios(0)  # Confirmações
                     lem1 = self.processar_envios(1)  # Lembretes 1 dia
                     lem30 = self.processar_envios(2)  # Lembretes 30 min
+                    ret = self.processar_emails_retorno()  # Emails de retorno
+                    prom = self.processar_emails_promocionais()  # Emails promocionais
 
-                    total = conf + lem1 + lem30
+                    total = conf + lem1 + lem30 + ret + prom
                     if total > 0:
                         self.logger.info(
-                            f"Verificação automática: {total} emails enviados (C:{conf}, L1:{lem1}, L30:{lem30})")
+                            f"Verificação automática: {total} emails enviados (C:{conf}, L1:{lem1}, L30:{lem30}, R:{ret}, P:{prom})")
 
                     self.ultima_execucao['automatica'] = agora
 
-                # CORREÇÃO 4: Sleep menor para mais responsividade
+                # Sleep menor para mais responsividade
                 time.sleep(30)  # Verificar a cada 30 segundos ao invés de 60
 
             except Exception as e:
@@ -575,6 +912,8 @@ class StreamlitEmailWorker:
             'confirmacoes': 0,
             'lembretes_1dia': 0,
             'lembretes_30min': 0,
+            'emails_retorno': 0,
+            'emails_promocionais': 0,
             'erros': []
         }
 
@@ -639,8 +978,49 @@ class StreamlitEmailWorker:
                     resultados['erros'].append(
                         f"Erro lembrete 30m {ag['id']}: {str(e)}")
 
-            total = resultados['confirmacoes'] + \
-                resultados['lembretes_1dia'] + resultados['lembretes_30min']
+            # Emails de retorno
+            clientes_inativos = self.buscar_clientes_inativos()
+            self.logger.info(
+                f"Encontrados {len(clientes_inativos)} clientes inativos")
+
+            for cliente in clientes_inativos:
+                try:
+                    assunto, corpo_html, corpo_texto = self.gerar_template_email_retorno(
+                        cliente)
+                    sucesso = self.enviar_email(
+                        cliente['cliente_email'], assunto, corpo_html, corpo_texto)
+                    self.registrar_email_retorno(
+                        cliente['cliente_email'], sucesso)
+                    if sucesso:
+                        resultados['emails_retorno'] += 1
+                except Exception as e:
+                    resultados['erros'].append(
+                        f"Erro email retorno cliente {cliente['cliente_email']}: {str(e)}")
+
+            # Emails promocionais
+            clientes_sem_agendamento = self.buscar_clientes_sem_agendamento()
+            self.logger.info(
+                f"Encontrados {len(clientes_sem_agendamento)} clientes sem agendamento")
+
+            for cliente in clientes_sem_agendamento:
+                try:
+                    assunto, corpo_html, corpo_texto = self.gerar_template_email_promocional(
+                        cliente)
+                    sucesso = self.enviar_email(
+                        cliente['cliente_email'], assunto, corpo_html, corpo_texto)
+                    self.registrar_email_promocional(
+                        cliente['cliente_email'], sucesso)
+                    if sucesso:
+                        resultados['emails_promocionais'] += 1
+                except Exception as e:
+                    resultados['erros'].append(
+                        f"Erro email promocional cliente {cliente['cliente_email']}: {str(e)}")
+
+            total = (resultados['confirmacoes'] +
+                     resultados['lembretes_1dia'] +
+                     resultados['lembretes_30min'] +
+                     resultados['emails_retorno'] +
+                     resultados['emails_promocionais'])
             self.logger.info(
                 f"Verificação forçada concluída: {total} emails enviados")
 
@@ -705,13 +1085,18 @@ def exibir_interface_email_worker():
 
                 st.success("Verificação concluída!")
 
-                col_a, col_b, col_c = st.columns(3)
+                col_a, col_b, col_c, col_d, col_e = st.columns(5)
                 with col_a:
                     st.metric("Confirmações", resultados['confirmacoes'])
                 with col_b:
                     st.metric("Lembretes 1 dia", resultados['lembretes_1dia'])
                 with col_c:
                     st.metric("Lembretes 30min", resultados['lembretes_30min'])
+                with col_d:
+                    st.metric("Emails Retorno", resultados['emails_retorno'])
+                with col_e:
+                    st.metric("Emails Promocionais",
+                              resultados['emails_promocionais'])
 
                 if resultados['erros']:
                     st.error(f"Erros: {', '.join(resultados['erros'])}")
@@ -722,13 +1107,18 @@ def exibir_interface_email_worker():
                 resultados = worker.executar_verificacao_forcada()
                 st.success("Verificação forçada concluída!")
 
-                col_a, col_b, col_c = st.columns(3)
+                col_a, col_b, col_c, col_d, col_e = st.columns(5)
                 with col_a:
                     st.metric("Confirmações", resultados['confirmacoes'])
                 with col_b:
                     st.metric("Lembretes 1 dia", resultados['lembretes_1dia'])
                 with col_c:
                     st.metric("Lembretes 30min", resultados['lembretes_30min'])
+                with col_d:
+                    st.metric("Emails Retorno", resultados['emails_retorno'])
+                with col_e:
+                    st.metric("Emails Promocionais",
+                              resultados['emails_promocionais'])
 
                 if resultados['erros']:
                     with st.expander("❌ Erros encontrados"):
@@ -765,7 +1155,9 @@ def exibir_interface_email_worker():
         agendamentos_info = {
             'Confirmações pendentes': len(worker.buscar_agendamentos_para_envio(0)),
             'Lembretes 1 dia pendentes': len(worker.buscar_agendamentos_para_envio(1)),
-            'Lembretes 30min pendentes': len(worker.buscar_agendamentos_para_envio(2))
+            'Lembretes 30min pendentes': len(worker.buscar_agendamentos_para_envio(2)),
+            'Emails retorno pendentes': len(worker.buscar_clientes_inativos()),
+            'Emails promocionais pendentes': len(worker.buscar_clientes_sem_agendamento())
         }
 
         st.write("**Agendamentos disponíveis para envio:**")
@@ -803,29 +1195,32 @@ EMPRESA_ENDERECO = "Rua Exemplo, 123"
         """)
 
     # Como funciona
-    with st.expander("ℹ️ Como Funciona o Sistema - VERSÃO CORRIGIDA"):
+    with st.expander("ℹ️ Como Funciona o Sistema - VERSÃO COMPLETA"):
         st.markdown("""
         **Sistema baseado em tempo real:**
         
         • **Confirmações**: Enviadas para agendamentos criados nas últimas 2 horas
         • **Lembretes 1 dia**: Enviados quando faltam entre 20-28 horas para o agendamento
         • **Lembretes 30 min**: Enviados quando faltam até 30 minutos para o agendamento
+        • **Emails de Retorno**: Enviados para clientes inativos (mais de 20 dias sem agendamento)
+        • **Emails Promocionais**: Enviados para clientes que nunca fizeram agendamento (a cada 20 dias)
         
-        **Verificações automáticas CORRIGIDAS:**
+        **Verificações automáticas:**
         • A cada 2 minutos (ao invés de 5 minutos)
         • Verificação a cada 30 segundos (ao invés de 60 segundos)
-        • **Removida** a verificação de inatividade que pausava o worker
         • Controle de execuções muito próximas (mínimo 90 segundos entre execuções)
         
-        **Correções aplicadas:**
-        • ✅ **Erro dict_values corrigido** na função executar_verificacao_unica()
-        • ✅ **Worker background melhorado** - não pausa mais por inatividade
-        • ✅ **Execução mais frequente** - a cada 2 minutos ao invés de 5
-        • ✅ **Verificação forçada** - ignora todos os timers e controles
-        • ✅ **Diagnóstico completo** - status detalhado do worker e threads
+        **Controles de spam:**
+        • Clientes inativos: só recebem novo email após 20 dias do último email de retorno
+        • Clientes sem agendamento: só recebem novo email após 20 dias do último email promocional
+        • Agendamentos: só recebem um email de cada tipo (confirmação, lembrete 1 dia, lembrete 30 min)
         
-        **Botão "Verificação FORÇADA":**
-        Use este botão se os envios automáticos ainda falharem. Ele ignora todos os controles de tempo e executa imediatamente.
+        **Funcionalidades:**
+        • ✅ Worker background automático
+        • ✅ Verificação manual e forçada
+        • ✅ Logs detalhados de todas as operações
+        • ✅ Estatísticas completas por tipo de email
+        • ✅ Diagnóstico completo do sistema
         """)
 
     # Logs do worker
@@ -845,19 +1240,21 @@ EMPRESA_ENDERECO = "Rua Exemplo, 123"
 
 # Exemplo de como usar na sua aplicação principal
 if __name__ == "__main__":
-    st.title("Sistema de Barbearia - Email Worker v2.0 CORRIGIDO")
+    st.title("Sistema de Barbearia - Email Worker v3.0 COMPLETO")
 
     # Inicializar sistema de emails automaticamente
     exibir_interface_email_worker()
 
     st.markdown("---")
     st.success(
-        "✨ O sistema de emails foi corrigido e está rodando baseado em tempo real!")
+        "✨ O sistema de emails está completo e funcionando com todas as funcionalidades!")
     st.info("""
-    **Principais correções aplicadas:**
-    - ✅ Erro 'dict_values' object is not subscriptable **CORRIGIDO**
-    - ✅ Worker background **NÃO PAUSA MAIS** por inatividade
-    - ✅ Execução **MAIS FREQUENTE** (2 min ao invés de 5 min)
-    - ✅ Botão **VERIFICAÇÃO FORÇADA** para bypass total
-    - ✅ Diagnóstico completo com status de threads
+    **Funcionalidades implementadas:**
+    - ✅ Confirmações de agendamento (2 horas após criar)
+    - ✅ Lembretes 1 dia antes (20-28 horas antes)
+    - ✅ Lembretes 30 minutos antes
+    - ✅ Emails de retorno para clientes inativos (20+ dias sem agendar)
+    - ✅ Emails promocionais para clientes sem agendamento (a cada 20 dias)
+    - ✅ Worker automático rodando em background
+    - ✅ Interface completa com diagnósticos e logs
     """)

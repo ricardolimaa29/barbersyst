@@ -6,7 +6,7 @@ import os.path
 import pickle
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-CALENDAR_ID = 'nortonsantos79@gmail.com'
+CALENDAR_ID = 'barbersyst@gmail.com'
 
 
 def get_google_service():

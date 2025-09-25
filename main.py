@@ -10,6 +10,8 @@ import plotly.graph_objects as go
 from createCalendar import createCalendar
 from inadimplentes import pagina_inadimplentes
 from streamlit_email_worker import exibir_interface_email_worker
+from getClientes import listar_clientes_st
+from getFeedbacks import get_feedbacks_interface
 
 # -------------------------------
 # Configuração da Página
@@ -65,6 +67,16 @@ def init_db():
                     data_atualizacao DATE DEFAULT (DATE('now'))
                 )''')
 
+    c.execute('''
+              CREATE TABLE IF NOT EXISTS feedbacks (
+                id_feedback     INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_agendamento  INTEGER NOT NULL,
+                id_cliente      INTEGER NOT NULL,
+                nota            INTEGER NOT NULL CHECK(nota BETWEEN 1 AND 5),
+                comentario      TEXT,
+                data_feedback   DATETIME DEFAULT CURRENT_TIMESTAMP
+              )''')
+
     conn.commit()
     conn.close()
 
@@ -76,11 +88,11 @@ init_db()
 # -------------------------------
 
 
-def cadastrar_cliente(nome, telefone):
+def cadastrar_cliente(nome, telefone, email, obs):
     conn = sqlite3.connect("barbearia.db")
     c = conn.cursor()
-    c.execute("INSERT INTO clientes (nome, telefone) VALUES (?, ?)",
-              (nome, telefone))
+    c.execute("INSERT INTO clientes (nome, telefone, email, obs) VALUES (?, ?, ?, ?)",
+              (nome, telefone, email, obs))
     conn.commit()
     conn.close()
 
@@ -156,7 +168,7 @@ def executar_inserts_pagamentos(qtd=5):
 # Menu de Navegação
 # -------------------------------
 menu = ["🏠 Dashboard", "👥 Clientes", "📅 Agendamentos",
-        "✂️ Serviços", "💳 Pagamentos", "📊 Relatórios", "⚠️ Inadimplentes", "📧 Email Worker"]
+        "✂️ Serviços", "💳 Pagamentos", "📊 Relatórios", "⚠️ Inadimplentes", "📧 Email Worker", "⭐ Feedbacks"]
 escolha = st.sidebar.radio("Navegação", menu)
 
 # -------------------------------
@@ -189,16 +201,16 @@ elif escolha == "👥 Clientes":
     with st.form("novo_cliente"):
         nome = st.text_input("Nome do Cliente")
         telefone = st.text_input("Telefone")
+        email = st.text_input("Email")
+        obs = st.text_area("Observações")
         if st.form_submit_button("➕ Adicionar Cliente"):
-            cadastrar_cliente(nome, telefone)
+            cadastrar_cliente(nome, telefone, email, obs)
             st.success(f"Cliente {nome} cadastrado com sucesso!")
 
-    st.subheader("📋 Lista de Clientes")
     clientes = listar_clientes()
-    for c in clientes:
-        st.write(f"**{c[1]}** - 📞 {c[2]}")
+    listar_clientes_st(clientes)
 
-# -------------------------------
+    # -------------------------------
 elif escolha == "✂️ Serviços":
     st.title("✂️ Serviços")
 
@@ -1003,3 +1015,6 @@ elif escolha == "⚠️ Inadimplentes":
 
 elif escolha == "📧 Email Worker":
     exibir_interface_email_worker()
+
+elif escolha == "⭐ Feedbacks":
+    get_feedbacks_interface()
